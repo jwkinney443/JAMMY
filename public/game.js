@@ -211,6 +211,37 @@ async function loadTrack() {
 
 bigPlay.addEventListener("click", () => { if (!gameOver) isPlaying ? stopClip() : playClip(); });
 
+// Suppress OS/browser media controls so the full track can't be accessed externally
+function suppressMediaSession() {
+  if (!("mediaSession" in navigator)) return;
+  navigator.mediaSession.metadata = null;
+  navigator.mediaSession.setActionHandler("play",         null);
+  navigator.mediaSession.setActionHandler("pause",        null);
+  navigator.mediaSession.setActionHandler("seekbackward", null);
+  navigator.mediaSession.setActionHandler("seekforward",  null);
+  navigator.mediaSession.setActionHandler("previoustrack",null);
+  navigator.mediaSession.setActionHandler("nexttrack",    null);
+  navigator.mediaSession.setActionHandler("seekto",       null);
+}
+suppressMediaSession();
+
+function enforceClipLimit(audio, getMaxSecs, onStop) {
+  audio.addEventListener("timeupdate", () => {
+    const limit = getMaxSecs();
+    if (limit !== null && audio.currentTime > limit) {
+      audio.pause();
+      audio.currentTime = limit;
+      onStop();
+    }
+  });
+}
+
+// Wire clip enforcement for endless audio
+enforceClipLimit(audioEl,
+  () => gameOver ? null : clipOffset + CLIP_DURATIONS[Math.min(guessCount, CLIP_DURATIONS.length - 1)],
+  stopClip
+);
+
 function playClip() {
   if (!currentTrack) return;
   const secs = CLIP_DURATIONS[Math.min(guessCount, CLIP_DURATIONS.length - 1)];
@@ -337,6 +368,12 @@ async function loadDaily() {
   dailyState.loaded = true;
   renderEmptySlots(dGuessesEl);
   makeVolumeControls(dailyAudio, document.getElementById("d-vol-btn"), document.getElementById("d-vol-slider"));
+
+  // Enforce clip limit on daily audio too
+  enforceClipLimit(dailyAudio,
+    () => dailyState.gameOver ? null : dailyState.clipOffset + CLIP_DURATIONS[Math.min(dailyState.guessCount, CLIP_DURATIONS.length - 1)],
+    stopDailyClip
+  );
 
   document.getElementById("d-big-play").addEventListener("click", () => {
     if (!dailyState.gameOver) dailyState.isPlaying ? stopDailyClip() : playDailyClip();
