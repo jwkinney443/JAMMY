@@ -768,6 +768,7 @@ function initChallengeGame(track) {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 initEndless();
-checkChallengeParam().then(isChallenge => { if (!isChallenge) loadTrack(); });
+loadTrack(); // always load endless track
+checkChallengeParam(); // separately handle challenge param if present
 
 })();
