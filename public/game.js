@@ -336,6 +336,11 @@ function endGame(won) {
     document.getElementById("preview-bar-fill"),
     document.getElementById("preview-time")
   );
+  // If this was a challenge game, show the reply section
+  if (window._challengeEndGamePatch) {
+    setupReplySection();
+    window._challengeEndGamePatch = null;
+  }
 }
 
 nextBtn.addEventListener("click", () => {
@@ -600,17 +605,91 @@ async function checkChallengeParam() {
     const res   = await fetch(`/api/track/${id}`);
     const track = await res.json();
     if (!track.preview || track.error) return false;
+
+    // Switch to play tab (game happens there)
+    switchTab("play");
+
     currentTrack = track; playedIds.add(track.id);
     albumArt.src = track.cover; audioEl.src = track.preview;
     clipOffset   = Math.random() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
     setStatus(""); updateSegBar(0, segs, segTime);
+
+    // Banner
     const banner = document.createElement("div");
     banner.style.cssText = "background:var(--accent);color:#fff;text-align:center;padding:8px;font-size:12px;font-weight:600;letter-spacing:0.08em;margin-bottom:1rem;border-radius:6px;";
     banner.setAttribute("data-challenge-banner", "");
     banner.textContent = "A friend challenged you to guess this song!";
     document.getElementById("play-panel").prepend(banner);
+
+    // After game ends, show the reply section
+    const origEndGame = endGame;
+    const patchedEndGame = function(won) {
+      origEndGame(won);
+      setupReplySection();
+    };
+    // Patch endGame for this session only
+    window._challengeEndGamePatch = patchedEndGame;
+
     return true;
   } catch { return false; }
+}
+
+function setupReplySection() {
+  const row       = document.getElementById("challenge-reply-row");
+  const input     = document.getElementById("reply-input");
+  const acList    = document.getElementById("reply-ac-list");
+  const selected  = document.getElementById("reply-selected");
+  const cover     = document.getElementById("reply-cover");
+  const titleEl   = document.getElementById("reply-title");
+  const artistEl  = document.getElementById("reply-artist");
+  const clearBtn  = document.getElementById("reply-clear");
+  const genBtn    = document.getElementById("reply-generate-btn");
+  const linkBox   = document.getElementById("reply-link-box");
+  const linkUrl   = document.getElementById("reply-link-url");
+  const copyBtn   = document.getElementById("reply-copy-btn");
+
+  row.style.display = "flex";
+  let chosenTrack = null;
+
+  makeSearchHandler(input, acList, track => {
+    chosenTrack = track;
+    input.value = "";
+    acList.classList.remove("open");
+    cover.src = track.cover || "";
+    titleEl.textContent  = track.title;
+    artistEl.textContent = track.artist;
+    selected.style.display = "flex";
+    genBtn.disabled = false;
+    genBtn.style.opacity = "1";
+    linkBox.style.display = "none";
+  });
+
+  document.addEventListener("mousedown", e => {
+    if (!e.target.closest("#result-panel .challenge-search-wrap")) acList.classList.remove("open");
+  });
+
+  clearBtn.addEventListener("click", () => {
+    chosenTrack = null;
+    selected.style.display = "none";
+    genBtn.disabled = true;
+    genBtn.style.opacity = "0.3";
+    linkBox.style.display = "none";
+    input.value = "";
+  });
+
+  genBtn.addEventListener("click", () => {
+    if (!chosenTrack) return;
+    linkUrl.value = `${location.origin}${location.pathname}?c=${chosenTrack.id}`;
+    linkBox.style.display = "block";
+  });
+
+  copyBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(linkUrl.value).then(() => {
+      copyBtn.textContent = "Copied!";
+      copyBtn.style.background = "var(--correct)";
+      setTimeout(() => { copyBtn.textContent = "Copy"; copyBtn.style.background = "var(--accent)"; }, 2000);
+    });
+  });
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────

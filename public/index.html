@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>JAMMY</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>"/>
 <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
@@ -83,6 +84,30 @@
         <div class="stat"><div class="stat-num" id="stat-guesses">0</div><div class="stat-label">Guesses</div></div>
         <div class="stat"><div class="stat-num" id="stat-streak">0</div><div class="stat-label">Streak</div></div>
         <button id="next-btn">Next Song &#8594;</button>
+      </div>
+      <!-- Shown only when playing a challenge link -->
+      <div id="challenge-reply-row" style="display:none; padding:0.9rem 1.2rem; border-top:1px solid var(--border); display:none; flex-direction:column; gap:10px;">
+        <div style="font-size:12px; color:var(--muted2); letter-spacing:0.04em;">Challenge them back with a song!</div>
+        <div class="challenge-search-wrap">
+          <input id="reply-input" class="guess-input" type="text" placeholder="Search for a song..." autocomplete="off"/>
+          <div id="reply-ac-list" class="ac-list"></div>
+        </div>
+        <div id="reply-selected" style="display:none; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; align-items:center; gap:10px;">
+          <img id="reply-cover" src="" alt="" style="width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0;"/>
+          <div style="flex:1;min-width:0;">
+            <div id="reply-title" style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+            <div id="reply-artist" style="font-size:11px;color:var(--muted2);margin-top:2px;"></div>
+          </div>
+          <button id="reply-clear" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0;flex-shrink:0;">&times;</button>
+        </div>
+        <button id="reply-generate-btn" disabled style="padding:12px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:0.1em; cursor:pointer; transition:opacity 0.15s; opacity:0.3;">Generate Reply Link</button>
+        <div id="reply-link-box" style="display:none; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px;">
+          <div style="font-size:11px;color:var(--muted2);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Share this link</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="reply-link-url" type="text" readonly style="flex:1;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;"/>
+            <button id="reply-copy-btn" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;transition:opacity 0.15s;flex-shrink:0;">Copy</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="howto">
