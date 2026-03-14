@@ -525,9 +525,9 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
 
   // Share
   const rows      = savedData.rows || [];
-  const emojiMap  = { correct: "\uD83D\uDFE9", warm: "\uD83D\uDFE8", wrong: "\uD83D\uDFE5", skipped: "\u2B1B" };
-  const blocks    = Array.from({ length: 6 }, (_, i) => emojiMap[rows[i]?.type] || "\u2B1C").join("");
-  const scoreText = won ? `${finalAttempts}/6` : "X/6";
+  const emojiMap  = { correct: "\uD83D\uDFE9", warm: "\uD83D\uDFE8", wrong: "\uD83D\uDFE5", skipped: "\u2B1C" };
+  const blocks    = Array.from({ length: 6 }, (_, i) => emojiMap[rows[i]?.type] || "\u2B1B").join("");
+  const scoreText = won ? `${finalAttempts}/6` : `X/6`;
   const shareText = `\uD83C\uDFB5 Jammy Daily \u2014 ${TODAY_KEY}\n${scoreText}\n\n${blocks}\n\n\uD83D\uDD17 ${location.origin}${location.pathname}`;
   document.getElementById("daily-share-blocks").textContent = blocks;
   document.getElementById("daily-share-btn").addEventListener("click", () => {
