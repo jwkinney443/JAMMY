@@ -192,7 +192,7 @@ main { max-width: 640px; margin: 0 auto; padding: 1.5rem 1.2rem 4rem; }
   .tab-btn { padding: 12px 6px; font-size: 12px; letter-spacing: 0; }
 
   /* Album art fills more of screen */
-  .game-visual { width: 100%; height: 0; padding-bottom: 60%; border-radius: 10px; }
+  .game-visual { width: 180px; height: 180px; padding-bottom: 0; border-radius: 10px; }
 
   /* Bigger play button */
   .big-play-btn { width: 72px; height: 72px; }
