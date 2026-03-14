@@ -336,11 +336,6 @@ function endGame(won) {
     document.getElementById("preview-bar-fill"),
     document.getElementById("preview-time")
   );
-  // If this was a challenge game, show the reply section
-  if (window._challengeEndGamePatch) {
-    setupReplySection();
-    window._challengeEndGamePatch = null;
-  }
 }
 
 nextBtn.addEventListener("click", () => {
@@ -558,6 +553,7 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
 }
 
 // ── Challenge tab ─────────────────────────────────────────────────────────────
+// ── Challenge: create mode ────────────────────────────────────────────────────
 (function setupChallenge() {
   const input       = document.getElementById("challenge-input");
   const acListEl    = document.getElementById("challenge-ac-list");
@@ -572,14 +568,12 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
   const copyBtn     = document.getElementById("copy-btn");
   let chosenTrack   = null;
 
-  makeSearchHandler(input, acListEl, track => pickTrack(track));
-  document.addEventListener("mousedown", e => { if (!e.target.closest(".challenge-search-wrap")) acListEl.classList.remove("open"); });
-
-  function pickTrack(track) {
+  makeSearchHandler(input, acListEl, track => {
     chosenTrack = track; input.value = ""; acListEl.classList.remove("open");
     cover.src = track.cover || ""; titleEl.textContent = track.title; artistEl.textContent = track.artist;
     selected.classList.add("visible"); generateBtn.disabled = false; linkBox.classList.remove("visible");
-  }
+  });
+  document.addEventListener("mousedown", e => { if (!e.target.closest("#challenge-create .challenge-search-wrap")) acListEl.classList.remove("open"); });
   clearBtn.addEventListener("click", () => {
     chosenTrack = null; selected.classList.remove("visible");
     generateBtn.disabled = true; linkBox.classList.remove("visible"); input.value = "";
@@ -597,7 +591,7 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
   });
 })();
 
-// ── Challenge link handler ────────────────────────────────────────────────────
+// ── Challenge: incoming game ──────────────────────────────────────────────────
 async function checkChallengeParam() {
   const id = new URLSearchParams(location.search).get("c");
   if (!id) return false;
@@ -606,90 +600,170 @@ async function checkChallengeParam() {
     const track = await res.json();
     if (!track.preview || track.error) return false;
 
-    // Switch to play tab (game happens there)
-    switchTab("play");
+    // Show challenge tab in game mode
+    switchTab("challenge");
+    document.getElementById("challenge-create").style.display = "none";
+    document.getElementById("challenge-game").style.display   = "block";
 
-    currentTrack = track; playedIds.add(track.id);
-    albumArt.src = track.cover; audioEl.src = track.preview;
-    clipOffset   = Math.random() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
-    setStatus(""); updateSegBar(0, segs, segTime);
-
-    // Banner
-    const banner = document.createElement("div");
-    banner.style.cssText = "background:var(--accent);color:#fff;text-align:center;padding:8px;font-size:12px;font-weight:600;letter-spacing:0.08em;margin-bottom:1rem;border-radius:6px;";
-    banner.setAttribute("data-challenge-banner", "");
-    banner.textContent = "A friend challenged you to guess this song!";
-    document.getElementById("play-panel").prepend(banner);
-
-    // After game ends, show the reply section
-    const origEndGame = endGame;
-    const patchedEndGame = function(won) {
-      origEndGame(won);
-      setupReplySection();
-    };
-    // Patch endGame for this session only
-    window._challengeEndGamePatch = patchedEndGame;
-
+    initChallengeGame(track);
     return true;
   } catch { return false; }
 }
 
-function setupReplySection() {
-  const row       = document.getElementById("challenge-reply-row");
-  const input     = document.getElementById("reply-input");
-  const acList    = document.getElementById("reply-ac-list");
-  const selected  = document.getElementById("reply-selected");
-  const cover     = document.getElementById("reply-cover");
-  const titleEl   = document.getElementById("reply-title");
-  const artistEl  = document.getElementById("reply-artist");
-  const clearBtn  = document.getElementById("reply-clear");
-  const genBtn    = document.getElementById("reply-generate-btn");
-  const linkBox   = document.getElementById("reply-link-box");
-  const linkUrl   = document.getElementById("reply-link-url");
-  const copyBtn   = document.getElementById("reply-copy-btn");
+function initChallengeGame(track) {
+  const cgAudio   = document.createElement("audio");
+  cgAudio.preload = "auto";
+  cgAudio.src     = track.preview;
+  document.body.appendChild(cgAudio);
 
-  row.style.display = "flex";
-  let chosenTrack = null;
+  const cgArt     = document.getElementById("cg-album-art");
+  const cgOverlay = document.getElementById("cg-overlay");
+  const cgPlay    = document.getElementById("cg-big-play");
+  const cgLabel   = document.getElementById("cg-clip-label");
+  const cgFill    = document.getElementById("cg-progress-fill");
+  const cgInput   = document.getElementById("cg-guess-input");
+  const cgAcList  = document.getElementById("cg-ac-list");
+  const cgSkip    = document.getElementById("cg-skip-btn");
+  const cgGuesses = document.getElementById("cg-guesses");
+  const cgResult  = document.getElementById("cg-result-panel");
+  const cgSegs    = [0,1,2,3,4,5].map(i => document.getElementById("cgseg-" + i));
+  const cgSegTime = document.getElementById("cgseg-time");
 
-  makeSearchHandler(input, acList, track => {
-    chosenTrack = track;
-    input.value = "";
-    acList.classList.remove("open");
-    cover.src = track.cover || "";
-    titleEl.textContent  = track.title;
-    artistEl.textContent = track.artist;
-    selected.style.display = "flex";
-    genBtn.disabled = false;
-    genBtn.style.opacity = "1";
-    linkBox.style.display = "none";
+  let cgGuessCount = 0, cgAttemptCount = 0;
+  let cgGameOver = false, cgPlaying = false;
+  let cgClipTimer = null, cgRaf = null, cgClipStart = 0;
+  const cgOffset = Math.random() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
+
+  cgArt.src = track.cover;
+  renderEmptySlots(cgGuesses);
+  updateSegBar(0, cgSegs, cgSegTime);
+  makeVolumeControls(cgAudio, document.getElementById("cg-vol-btn"), document.getElementById("cg-vol-slider"));
+  enforceClipLimit(cgAudio,
+    () => cgGameOver ? null : cgOffset + CLIP_DURATIONS[Math.min(cgGuessCount, CLIP_DURATIONS.length - 1)],
+    stopCG
+  );
+
+  cgPlay.addEventListener("click", () => { if (!cgGameOver) cgPlaying ? stopCG() : playCG(); });
+
+  function playCG() {
+    const secs = CLIP_DURATIONS[Math.min(cgGuessCount, CLIP_DURATIONS.length - 1)];
+    cgAudio.currentTime = cgOffset;
+    cgAudio.play().catch(() => {});
+    cgPlaying = true; cgClipStart = Date.now();
+    cgPlay.classList.add("playing");
+    cgLabel.textContent = `Playing ${secs}s clip...`;
+    cgFill.style.width = "0%";
+    cancelAnimationFrame(cgRaf);
+    (function tick() {
+      const pct = Math.min(((Date.now() - cgClipStart) / (secs * 1000)) * 100, 100);
+      cgFill.style.width = pct + "%";
+      if (pct < 100 && cgPlaying) cgRaf = requestAnimationFrame(tick);
+    })();
+    clearTimeout(cgClipTimer);
+    cgClipTimer = setTimeout(stopCG, secs * 1000);
+  }
+
+  function stopCG() {
+    cgAudio.pause(); cgPlaying = false;
+    clearTimeout(cgClipTimer); cancelAnimationFrame(cgRaf);
+    cgFill.style.width = "0%"; cgPlay.classList.remove("playing");
+    if (!cgGameOver) cgLabel.textContent = "Press play to hear the clip";
+  }
+
+  cgSkip.addEventListener("click", () => {
+    if (cgGameOver) return;
+    stopCG(); cgAcList.classList.remove("open");
+    addGuessRow(cgGuesses, makeGuessRow("\u2014 skipped \u2014", "skipped"));
+    cgAttemptCount++; cgGuessCount++; cgInput.value = "";
+    if (cgGuessCount >= MAX_GUESSES) endCG(false);
+    else updateSegBar(cgGuessCount, cgSegs, cgSegTime);
   });
 
-  document.addEventListener("mousedown", e => {
-    if (!e.target.closest("#result-panel .challenge-search-wrap")) acList.classList.remove("open");
+  makeSearchHandler(cgInput, cgAcList, t => {
+    cgInput.value = `${t.title} \u2014 ${t.artist}`;
+    cgAcList.classList.remove("open");
+    submitCG(t);
   });
+  document.addEventListener("mousedown", e => { if (!e.target.closest("#challenge-game .guess-area")) cgAcList.classList.remove("open"); });
 
-  clearBtn.addEventListener("click", () => {
-    chosenTrack = null;
-    selected.style.display = "none";
-    genBtn.disabled = true;
-    genBtn.style.opacity = "0.3";
-    linkBox.style.display = "none";
-    input.value = "";
-  });
+  function submitCG(t) {
+    if (cgGameOver) return;
+    stopCG(); cgAcList.classList.remove("open");
+    const sameId     = String(t.id) === String(track.id);
+    const sameTitle  = normalize(t.title)  === normalize(track.title);
+    const sameArtist = normalize(t.artist) === normalize(track.artist);
+    const correct    = sameId || (sameTitle && sameArtist);
+    const artistMatch = !correct && sameArtist;
+    const type        = correct ? "correct" : artistMatch ? "warm" : "wrong";
+    addGuessRow(cgGuesses, makeGuessRow(`${t.artist} \u2014 ${t.title}`, type, "", artistMatch));
+    cgAttemptCount++; cgInput.value = "";
+    if (correct) endCG(true);
+    else { cgGuessCount++; if (cgGuessCount >= MAX_GUESSES) endCG(false); else updateSegBar(cgGuessCount, cgSegs, cgSegTime); }
+  }
 
-  genBtn.addEventListener("click", () => {
-    if (!chosenTrack) return;
-    linkUrl.value = `${location.origin}${location.pathname}?c=${chosenTrack.id}`;
-    linkBox.style.display = "block";
-  });
+  function endCG(won) {
+    cgGameOver = true; stopCG();
+    cgInput.disabled = true; cgSkip.disabled = true;
+    cgArt.classList.add("revealed"); cgOverlay.classList.add("hidden");
 
-  copyBtn.addEventListener("click", () => {
-    navigator.clipboard.writeText(linkUrl.value).then(() => {
-      copyBtn.textContent = "Copied!";
-      copyBtn.style.background = "var(--correct)";
-      setTimeout(() => { copyBtn.textContent = "Copy"; copyBtn.style.background = "var(--accent)"; }, 2000);
+    cgResult.style.display = "block";
+    cgResult.className     = "result-panel " + (won ? "win" : "lose");
+    document.getElementById("cg-result-verdict").textContent = won ? "YOU GOT IT!" : "NICE TRY";
+    document.getElementById("cg-result-verdict").className   = "result-verdict " + (won ? "win" : "lose");
+    document.getElementById("cg-result-cover").src           = track.cover  || "";
+    document.getElementById("cg-result-title").textContent   = track.title  || "\u2014";
+    document.getElementById("cg-result-artist").textContent  = track.artist || "\u2014";
+    document.getElementById("cg-result-album").textContent   = track.album  || "";
+    document.getElementById("cg-deezer-link").href           = track.deezer || "#";
+    document.getElementById("cg-youtube-link").href          = `https://music.youtube.com/search?q=${encodeURIComponent(track.artist + " " + track.title)}`;
+    document.getElementById("cg-spotify-link").href          = `https://open.spotify.com/search/${encodeURIComponent(track.artist + " " + track.title)}/tracks`;
+    document.getElementById("cg-stat-guesses").textContent   = String(cgAttemptCount);
+    resolveSpotify(track.artist, track.title, document.getElementById("cg-spotify-link"));
+
+    makePreviewPlayer(cgAudio,
+      document.getElementById("cg-preview-btn"),
+      document.getElementById("cg-preview-fill"),
+      document.getElementById("cg-preview-time")
+    );
+
+    // Wire reply section
+    const replyInput  = document.getElementById("cg-reply-input");
+    const replyAcList = document.getElementById("cg-reply-ac-list");
+    const replySelEl  = document.getElementById("cg-reply-selected");
+    const replyCover  = document.getElementById("cg-reply-cover");
+    const replyTitle  = document.getElementById("cg-reply-title");
+    const replyArtist = document.getElementById("cg-reply-artist");
+    const replyGenBtn = document.getElementById("cg-reply-gen-btn");
+    const replyLinkBox= document.getElementById("cg-reply-link-box");
+    const replyUrl    = document.getElementById("cg-reply-url");
+    const replyCopy   = document.getElementById("cg-reply-copy");
+    let replyTrack    = null;
+
+    makeSearchHandler(replyInput, replyAcList, t => {
+      replyTrack = t; replyInput.value = ""; replyAcList.classList.remove("open");
+      replyCover.src = t.cover || ""; replyTitle.textContent = t.title; replyArtist.textContent = t.artist;
+      replySelEl.style.display = "flex";
+      replyGenBtn.disabled = false; replyGenBtn.style.opacity = "1";
+      replyLinkBox.style.display = "none";
     });
-  });
+    document.addEventListener("mousedown", e => { if (!e.target.closest("#cg-reply-row .challenge-search-wrap")) replyAcList.classList.remove("open"); });
+    document.getElementById("cg-reply-clear").addEventListener("click", () => {
+      replyTrack = null; replySelEl.style.display = "none";
+      replyGenBtn.disabled = true; replyGenBtn.style.opacity = "0.3";
+      replyLinkBox.style.display = "none"; replyInput.value = "";
+    });
+    replyGenBtn.addEventListener("click", () => {
+      if (!replyTrack) return;
+      replyUrl.value = `${location.origin}${location.pathname}?c=${replyTrack.id}`;
+      replyLinkBox.style.display = "block";
+    });
+    replyCopy.addEventListener("click", () => {
+      navigator.clipboard.writeText(replyUrl.value).then(() => {
+        replyCopy.textContent = "Copied!"; replyCopy.style.background = "var(--correct)";
+        setTimeout(() => { replyCopy.textContent = "Copy"; replyCopy.style.background = "var(--accent)"; }, 2000);
+      });
+    });
+  }
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────

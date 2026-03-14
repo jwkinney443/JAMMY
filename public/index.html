@@ -85,30 +85,7 @@
         <div class="stat"><div class="stat-num" id="stat-streak">0</div><div class="stat-label">Streak</div></div>
         <button id="next-btn">Next Song &#8594;</button>
       </div>
-      <!-- Shown only when playing a challenge link -->
-      <div id="challenge-reply-row" style="display:none; padding:0.9rem 1.2rem; border-top:1px solid var(--border); display:none; flex-direction:column; gap:10px;">
-        <div style="font-size:12px; color:var(--muted2); letter-spacing:0.04em;">Challenge them back with a song!</div>
-        <div class="challenge-search-wrap">
-          <input id="reply-input" class="guess-input" type="text" placeholder="Search for a song..." autocomplete="off"/>
-          <div id="reply-ac-list" class="ac-list"></div>
-        </div>
-        <div id="reply-selected" style="display:none; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; align-items:center; gap:10px;">
-          <img id="reply-cover" src="" alt="" style="width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0;"/>
-          <div style="flex:1;min-width:0;">
-            <div id="reply-title" style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-            <div id="reply-artist" style="font-size:11px;color:var(--muted2);margin-top:2px;"></div>
-          </div>
-          <button id="reply-clear" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0;flex-shrink:0;">&times;</button>
-        </div>
-        <button id="reply-generate-btn" disabled style="padding:12px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:0.1em; cursor:pointer; transition:opacity 0.15s; opacity:0.3;">Generate Reply Link</button>
-        <div id="reply-link-box" style="display:none; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px;">
-          <div style="font-size:11px;color:var(--muted2);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Share this link</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input id="reply-link-url" type="text" readonly style="flex:1;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;"/>
-            <button id="reply-copy-btn" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;transition:opacity 0.15s;flex-shrink:0;">Copy</button>
-          </div>
-        </div>
-      </div>
+    </div>
     </div>
     <div class="howto">
       <strong>How to play:</strong> A 30s preview plays — guess the song before 6 tries.
@@ -170,7 +147,7 @@
           Listen on YouTube Music
         </a>
         <a id="d-spotify-link" class="link-btn spotify" href="#" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.１２-１．０２－０．１２－１．１４－０．６－０．１２－０．４８＋０．１２－１．０２１＋０．６－１．１４１Ｃ９．６ ９．９ １５ １０．５６１ １８．７２ １２．８４ｃ０．３６１＋０．１８１＋０．５４＋０．７８＋０．２４１＋１．２ｚｍ＋０．１２－３．３６Ｃ１５．２４ ８．４ ８．８２ ８．１６ ５．１６ ９．３０１ｃ－０．６＋０．１７９－１．２－０．１８１－１．３８－０．７２１－０．１８－０．６０¹＋０．¹⁸－¹．²＋⁰．⁷²－¹．³⁸¹ ⁴．²⁶－¹．²⁶ ¹¹．²⁸－¹．⁰² ¹⁵／７²¹ ＋₁／₆²¹ｃ₀／₅³₉ ＋₀／₃ ＋₀／₇₁ ＋₁／₀₂ ＋₀／₄₁ ＋₁／₅₆ －₀／₂₉₉ ＋₀／₄₂₁ －₁／₀₂ ＋₀／₅₉₉ －₁／₅₅⁹ ＋₀／³z"/></svg>
           Listen on Spotify
         </a>
       </div>
@@ -191,27 +168,125 @@
 
   <!-- ── CHALLENGE ── -->
   <div id="challenge-panel">
-    <p style="font-size:13px; color:var(--muted2); margin-bottom:1rem;">Search for a song, then share the link — your friend has to guess it!</p>
-    <div class="challenge-search-wrap">
-      <input id="challenge-input" type="text" placeholder="Search for a song to challenge with..." autocomplete="off"/>
-      <div id="challenge-ac-list"></div>
-    </div>
-    <div id="challenge-selected">
-      <img id="challenge-cover" src="" alt=""/>
-      <div class="challenge-track-info">
-        <div class="challenge-track-title" id="challenge-title"></div>
-        <div class="challenge-track-artist" id="challenge-artist"></div>
+
+    <!-- Create mode (default) -->
+    <div id="challenge-create">
+      <p style="font-size:13px; color:var(--muted2); margin-bottom:1rem;">Search for a song, then share the link — your friend has to guess it!</p>
+      <div class="challenge-search-wrap">
+        <input id="challenge-input" type="text" placeholder="Search for a song to challenge with..." autocomplete="off"/>
+        <div id="challenge-ac-list"></div>
       </div>
-      <button id="challenge-clear" title="Clear">&times;</button>
-    </div>
-    <button id="generate-btn" disabled>Generate Challenge Link</button>
-    <div id="challenge-link-box">
-      <div id="challenge-link-label">Share this link</div>
-      <div id="challenge-link-row">
-        <input id="challenge-link-url" type="text" readonly/>
-        <button id="copy-btn">Copy</button>
+      <div id="challenge-selected">
+        <img id="challenge-cover" src="" alt=""/>
+        <div class="challenge-track-info">
+          <div class="challenge-track-title" id="challenge-title"></div>
+          <div class="challenge-track-artist" id="challenge-artist"></div>
+        </div>
+        <button id="challenge-clear" title="Clear">&times;</button>
+      </div>
+      <button id="generate-btn" disabled>Generate Challenge Link</button>
+      <div id="challenge-link-box">
+        <div id="challenge-link-label">Share this link</div>
+        <div id="challenge-link-row">
+          <input id="challenge-link-url" type="text" readonly/>
+          <button id="copy-btn">Copy</button>
+        </div>
       </div>
     </div>
+
+    <!-- Incoming challenge game (shown when ?c= param detected) -->
+    <div id="challenge-game" style="display:none;">
+      <div id="cg-banner" style="background:var(--accent);color:#fff;text-align:center;padding:8px;font-size:12px;font-weight:600;letter-spacing:0.08em;margin-bottom:1rem;border-radius:6px;">
+        A friend challenged you to guess this song!
+      </div>
+      <div class="game-visual">
+        <img id="cg-album-art" class="game-art" src="" alt=""/>
+        <div id="cg-overlay" class="game-overlay">
+          <button id="cg-big-play" class="big-play-btn" aria-label="Play clip">
+            <svg class="play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg class="pause" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+          <span id="cg-clip-label" class="clip-label">Press play to hear the clip</span>
+        </div>
+      </div>
+      <div class="seg-bar">
+        <div class="seg" id="cgseg-0"></div><div class="seg" id="cgseg-1"></div>
+        <div class="seg" id="cgseg-2"></div><div class="seg" id="cgseg-3"></div>
+        <div class="seg" id="cgseg-4"></div><div class="seg" id="cgseg-5"></div>
+        <span id="cgseg-time" class="seg-time">1s</span>
+      </div>
+      <div class="audio-progress"><div id="cg-progress-fill" class="audio-progress-fill"></div></div>
+      <div class="volume-row">
+        <button id="cg-vol-btn" class="vol-btn" aria-label="Toggle mute">&#128266;</button>
+        <input id="cg-vol-slider" class="vol-slider" type="range" min="0" max="1" step="0.02" value="1"/>
+      </div>
+      <div class="guess-area">
+        <input id="cg-guess-input" class="guess-input" type="text" placeholder="Search for artist or song..." autocomplete="off"/>
+        <div id="cg-ac-list" class="ac-list"></div>
+        <button id="cg-skip-btn" class="skip-btn">Skip</button>
+      </div>
+      <div id="cg-guesses" class="guesses-list"></div>
+
+      <!-- Result panel -->
+      <div id="cg-result-panel" class="result-panel">
+        <div class="result-top">
+          <img id="cg-result-cover" class="result-cover" src="" alt=""/>
+          <div class="result-info">
+            <div class="result-verdict" id="cg-result-verdict">YOU GOT IT</div>
+            <div id="cg-result-title" class="result-track-title">—</div>
+            <div id="cg-result-artist" class="result-track-artist">—</div>
+            <div id="cg-result-album" class="result-track-album">—</div>
+          </div>
+        </div>
+        <div class="result-player">
+          <button id="cg-preview-btn" class="preview-btn" aria-label="Play preview"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 1.5l9 4.5-9 4.5z"/></svg></button>
+          <div class="preview-bar-wrap"><div id="cg-preview-fill" class="preview-bar-fill"></div></div>
+          <span id="cg-preview-time" class="preview-time">0:00 / 0:30</span>
+        </div>
+        <div class="result-links">
+          <a id="cg-deezer-link" class="link-btn deezer" href="#" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.81 11.293c0-.85.677-1.54 1.513-1.54.836 0 1.513.69 1.513 1.54v1.414c0 .85-.677 1.54-1.513 1.54-.836 0-1.513-.69-1.513-1.54v-1.414zM14.135 8.68c0-.85.677-1.54 1.513-1.54.836 0 1.513.69 1.513 1.54v4.027c0 .85-.677 1.54-1.513 1.54-.836 0-1.513-.69-1.513-1.54V8.68zM9.459 6.386c0-.85.677-1.54 1.513-1.54.836 0 1.513.69 1.513 1.54v6.321c0 .85-.677 1.54-1.513 1.54-.836 0-1.513-.69-1.513-1.54V6.386zM4.783 9.834c0-.85.677-1.54 1.513-1.54.836 0 1.513.69 1.513 1.54v2.873c0 .85-.677 1.54-1.513 1.54-.836 0-1.513-.69-1.513-1.54V9.834zM.107 11.293c0-.85.677-1.54 1.513-1.54.836 0 1.513.69 1.513 1.54v1.414c0 .85-.677 1.54-1.513 1.54C.784 14.247.107 13.557.107 12.707v-1.414z"/></svg>
+            Listen on Deezer
+          </a>
+          <a id="cg-youtube-link" class="link-btn youtube" href="#" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>
+            Listen on YouTube Music
+          </a>
+          <a id="cg-spotify-link" class="link-btn spotify" href="#" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+            Listen on Spotify
+          </a>
+        </div>
+        <div class="result-bottom">
+          <div class="stat"><div class="stat-num" id="cg-stat-guesses">0</div><div class="stat-label">Guesses</div></div>
+        </div>
+        <!-- Reply section -->
+        <div id="cg-reply-row" style="padding:0.9rem 1.2rem; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:10px;">
+          <div style="font-size:12px; color:var(--muted2); letter-spacing:0.04em;">Challenge them back!</div>
+          <div class="challenge-search-wrap">
+            <input id="cg-reply-input" class="guess-input" type="text" placeholder="Search for a song..." autocomplete="off"/>
+            <div id="cg-reply-ac-list" class="ac-list"></div>
+          </div>
+          <div id="cg-reply-selected" style="display:none; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; align-items:center; gap:10px; flex-direction:row;">
+            <img id="cg-reply-cover" src="" alt="" style="width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0;"/>
+            <div style="flex:1;min-width:0;">
+              <div id="cg-reply-title" style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+              <div id="cg-reply-artist" style="font-size:11px;color:var(--muted2);margin-top:2px;"></div>
+            </div>
+            <button id="cg-reply-clear" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0;flex-shrink:0;">&times;</button>
+          </div>
+          <button id="cg-reply-gen-btn" disabled style="padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:0.1em;cursor:pointer;transition:opacity 0.15s;opacity:0.3;">Generate Reply Link</button>
+          <div id="cg-reply-link-box" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+            <div style="font-size:11px;color:var(--muted2);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Share this link</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="cg-reply-url" type="text" readonly style="flex:1;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;"/>
+              <button id="cg-reply-copy" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;transition:opacity 0.15s;flex-shrink:0;">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </main>
 
