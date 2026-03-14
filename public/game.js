@@ -531,8 +531,7 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
   });
   generateBtn.addEventListener("click", () => {
     if (!chosenTrack) return;
-    const data = btoa(JSON.stringify({ id: chosenTrack.id, title: chosenTrack.title, artist: chosenTrack.artist, album: chosenTrack.album, cover: chosenTrack.cover, preview: chosenTrack.preview, deezer: chosenTrack.deezer }));
-    linkUrl.value = `${location.origin}${location.pathname}?challenge=${encodeURIComponent(data)}`;
+    linkUrl.value = `${location.origin}${location.pathname}?c=${chosenTrack.id}`;
     linkBox.classList.add("visible");
   });
   copyBtn.addEventListener("click", () => {
@@ -544,12 +543,13 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
 })();
 
 // ── Challenge link handler ────────────────────────────────────────────────────
-function checkChallengeParam() {
-  const raw = new URLSearchParams(location.search).get("challenge");
-  if (!raw) return false;
+async function checkChallengeParam() {
+  const id = new URLSearchParams(location.search).get("c");
+  if (!id) return false;
   try {
-    const track = JSON.parse(atob(decodeURIComponent(raw)));
-    if (!track.preview) return false;
+    const res   = await fetch(`/api/track/${id}`);
+    const track = await res.json();
+    if (!track.preview || track.error) return false;
     currentTrack = track; playedIds.add(track.id);
     albumArt.src = track.cover; audioEl.src = track.preview;
     clipOffset   = Math.random() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
@@ -565,6 +565,6 @@ function checkChallengeParam() {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 initEndless();
-if (!checkChallengeParam()) loadTrack();
+checkChallengeParam().then(isChallenge => { if (!isChallenge) loadTrack(); });
 
 })();
