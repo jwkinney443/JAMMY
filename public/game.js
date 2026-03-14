@@ -17,6 +17,14 @@ function esc(str) {
 function normalize(s) { return (s || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
 function fmt(s) { return `0:${String(Math.floor(s)).padStart(2, "0")}`; }
 
+async function resolveSpotify(artist, title, linkEl) {
+  try {
+    const res  = await fetch(`/api/spotify?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`);
+    const data = await res.json();
+    if (data.url) linkEl.href = data.url;
+  } catch {}
+}
+
 function renderAcItems(tracks, container, onPick) {
   container.innerHTML = "";
   tracks.forEach(track => {
@@ -315,6 +323,7 @@ function endGame(won) {
   deezerLink.href  = t.deezer || "#";
   youtubeLink.href = `https://music.youtube.com/search?q=${encodeURIComponent(t.artist + " " + t.title)}`;
   spotifyLink.href = `https://open.spotify.com/search/${encodeURIComponent(t.artist + " " + t.title)}/tracks`;
+  resolveSpotify(t.artist, t.title, spotifyLink);
   document.getElementById("stat-guesses").textContent = String(attemptCount);
   statStreak.textContent = streak;
   resultPanel.style.display = "block";
@@ -514,7 +523,8 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
   document.getElementById("d-result-album").textContent   = t.album  || "";
   document.getElementById("d-deezer-link").href           = t.deezer || "#";
   document.getElementById("d-youtube-link").href          = `https://music.youtube.com/search?q=${encodeURIComponent(t.artist + " " + t.title)}`;
-  document.getElementById("d-spotify-link").href          = `https://open.spotify.com/search/${encodeURIComponent(t.artist + " " + t.title)}/tracks`;
+  document.getElementById("d-spotify-link").href = `https://open.spotify.com/search/${encodeURIComponent(t.artist + " " + t.title)}/tracks`;
+  resolveSpotify(t.artist, t.title, document.getElementById("d-spotify-link"));
   document.getElementById("d-stat-guesses").textContent   = String(finalAttempts);
 
   makePreviewPlayer(dailyAudio,

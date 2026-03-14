@@ -3,6 +3,54 @@ const https = require("https");
 const fs = require("fs");
 const path = require("path");
 
+// ── Spotify token cache ───────────────────────────────────────────────────────
+let spotifyToken = null;
+let spotifyTokenExpiry = 0;
+
+function httpsPost(hostname, path, headers, body) {
+  return new Promise((resolve, reject) => {
+    const req = https.request({ hostname, path, method: "POST", headers }, (res) => {
+      let d = "";
+      res.on("data", (c) => (d += c));
+      res.on("end", () => { try { resolve(JSON.parse(d)); } catch (e) { reject(e); } });
+    });
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+async function getSpotifyToken() {
+  if (spotifyToken && Date.now() < spotifyTokenExpiry) return spotifyToken;
+  const id     = process.env.SPOTIFY_CLIENT_ID;
+  const secret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!id || !secret) throw new Error("Spotify credentials not set");
+  const creds  = Buffer.from(`${id}:${secret}`).toString("base64");
+  const data   = await httpsPost(
+    "accounts.spotify.com", "/api/token",
+    { "Authorization": `Basic ${creds}`, "Content-Type": "application/x-www-form-urlencoded" },
+    "grant_type=client_credentials"
+  );
+  spotifyToken       = data.access_token;
+  spotifyTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
+  return spotifyToken;
+}
+
+function spotifyGet(apiPath, token) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      { hostname: "api.spotify.com", path: apiPath, method: "GET", headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } },
+      (res) => {
+        let d = "";
+        res.on("data", (c) => (d += c));
+        res.on("end", () => { try { resolve(JSON.parse(d)); } catch (e) { reject(e); } });
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 function deezerGet(apiPath) {
   return new Promise((resolve, reject) => {
     const req = https.request(
@@ -120,6 +168,22 @@ const server = http.createServer((req, res) => {
       .then((t) => sendJson(res, 200, mapTrack(t)))
       .catch((e) => sendJson(res, 500, { error: e.message }));
 
+    return;
+  }
+
+  // SPOTIFY — resolve direct track URL
+  if (p === "/api/spotify") {
+    const artist = url.searchParams.get("artist") || "";
+    const title  = url.searchParams.get("title")  || "";
+    if (!artist || !title) { sendJson(res, 400, { error: "Missing artist or title" }); return; }
+    getSpotifyToken()
+      .then(token => spotifyGet(`/v1/search?q=${encodeURIComponent(`track:${title} artist:${artist}`)}&type=track&limit=1`, token))
+      .then(data => {
+        const track = data?.tracks?.items?.[0];
+        if (!track) { sendJson(res, 404, { error: "Not found" }); return; }
+        sendJson(res, 200, { url: track.external_urls.spotify });
+      })
+      .catch(e => sendJson(res, 500, { error: e.message }));
     return;
   }
 
