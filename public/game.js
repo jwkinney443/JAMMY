@@ -393,16 +393,31 @@ document.getElementById("tab-challenge").addEventListener("click", () => switchT
 
 // If user returns to the page after midnight, reload daily if date has changed
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && dailyState.loadedForDate && dailyState.loadedForDate !== getTodayKey()) {
-    // Date has rolled over — reset so next time they click Daily it reloads fresh
-    dailyState.loaded = false;
-    dailyState.loadedForDate = null;
-    // If they're currently on the daily tab, reload immediately
-    if (document.getElementById("daily-panel").classList.contains("active")) {
-      switchTab("daily");
+  if (document.visibilityState === "visible") {
+    if (dailyState.loadedForDate && dailyState.loadedForDate !== getTodayKey()) {
+      dailyState.loaded = false;
+      dailyState.loadedForDate = null;
+      if (document.getElementById("daily-panel").classList.contains("active")) switchTab("daily");
     }
   }
 });
+
+// SSE — instantly detect when admin sets a new override
+(function connectOverrideEvents() {
+  const es = new EventSource("/api/daily-events");
+  es.addEventListener("message", e => {
+    const { setAt } = JSON.parse(e.data);
+    if (setAt !== dailyState.overrideSetAt) {
+      localStorage.removeItem("jammy_daily_" + getTodayKey());
+      dailyState.loaded = false;
+      dailyState.loadedForDate = null;
+      dailyState.overrideSetAt = setAt;
+      if (document.getElementById("daily-panel").classList.contains("active")) switchTab("daily");
+    }
+  });
+  // Reconnect if connection drops
+  es.onerror = () => { es.close(); setTimeout(connectOverrideEvents, 5000); };
+})();
 
 // ── Daily mode ────────────────────────────────────────────────────────────────
 const dailyAudio = document.getElementById("daily-audio");
@@ -472,8 +487,8 @@ async function loadDaily() {
     if (ovData.track && ovData.track.preview) {
       track = ovData.track;
       overrideSetAt = ovData.setAt || null;
-      dailyState.overrideSetAt = overrideSetAt;
     }
+    dailyState.overrideSetAt = overrideSetAt;
   } catch {}
 
   // If there's a saved result but the override has changed since, clear it

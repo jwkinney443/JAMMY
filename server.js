@@ -80,6 +80,15 @@ function readBody(req) {
 }
 
 
+// ── SSE clients ───────────────────────────────────────────────────────────────
+const sseClients = new Set();
+
+function broadcastOverrideChange(setAt) {
+  const msg = `data: ${JSON.stringify({ setAt })}\n\n`;
+  sseClients.forEach(client => { try { client.write(msg); } catch { sseClients.delete(client); } });
+}
+
+
 function deezerGet(apiPath) {
   return new Promise((resolve, reject) => {
     const req = https.request(
@@ -164,6 +173,20 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://localhost");
   const p = url.pathname;
 
+  // SSE — push override changes to connected clients
+  if (p === "/api/daily-events") {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no"
+    });
+    res.write(": connected\n\n");
+    sseClients.add(res);
+    req.on("close", () => sseClients.delete(res));
+    return;
+  }
+
   // DAILY OVERRIDE — get today's pinned track if set
   if (p === "/api/daily-override") {
     const override = readOverride();
@@ -182,6 +205,7 @@ const server = http.createServer((req, res) => {
       .then(body => {
         if (!body.track || !body.track.id) throw new Error("Missing track");
         writeOverride(body.track);
+        broadcastOverrideChange(JSON.parse(fs.readFileSync(OVERRIDE_FILE,"utf8")).setAt);
         sendJson(res, 200, { ok: true, date: getTodayDateStr(), track: body.track });
       })
       .catch(e => sendJson(res, 400, { error: e.message }));
@@ -195,6 +219,7 @@ const server = http.createServer((req, res) => {
     const auth = req.headers["x-admin-password"];
     if (auth !== adminPass) { sendJson(res, 401, { error: "Unauthorized" }); return; }
     try { fs.unlinkSync(OVERRIDE_FILE); } catch {}
+    broadcastOverrideChange(null);
     sendJson(res, 200, { ok: true });
     return;
   }
