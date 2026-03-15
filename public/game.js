@@ -230,24 +230,47 @@ function restoreEndlessSession() {
   try {
     const s = JSON.parse(raw);
     if (!s.track?.preview) return false;
+
     currentTrack = s.track; guessCount = s.guessCount; attemptCount = s.attemptCount;
     gameOver = s.gameOver; clipOffset = s.clipOffset;
     playedIds.add(s.track.id);
-    albumArt.src = s.track.cover; audioEl.src = s.track.preview; audioEl.load();
-    updateSegBar(guessCount, segs, segTime);
-    renderEmptySlots(guessesEl);
+    albumArt.src = s.track.cover;
+    audioEl.src  = s.track.preview;
+    audioEl.load();
+
+    // Restore guess rows (slots already rendered by initEndless)
     s.rows.forEach((r, i) => {
       const num = r.type !== "skipped" ? `${i + 1}/6` : "";
       addGuessRow(guessesEl, makeGuessRow(r.text, r.type, num, r.artistMatch));
     });
+
     if (gameOver) {
+      // Finished game — show result state without re-running endGame logic
       guessInput.disabled = true; skipBtn.disabled = true;
       albumArt.classList.add("revealed"); coverOverlay.classList.add("hidden");
-      // Rebuild result panel — trigger endGame display without re-saving
-      endGame._fromRestore = true;
-      endGame(s.rows.some(r => r.type === "correct"));
-      endGame._fromRestore = false;
+      const t = s.track;
+      const won = s.rows.some(r => r.type === "correct");
+      resultVerdict.textContent = won ? "YOU GOT IT!" : "NICE TRY";
+      resultVerdict.className   = "result-verdict " + (won ? "win" : "lose");
+      resultCover.src           = t.cover  || "";
+      resultTitle.textContent   = t.title  || "\u2014";
+      resultArtist.textContent  = t.artist || "\u2014";
+      resultAlbum.textContent   = t.album  || "";
+      deezerLink.href           = t.deezer || "#";
+      youtubeLink.href = `https://music.youtube.com/search?q=${encodeURIComponent(t.artist + " " + t.title)}`;
+      spotifyLink.href = `https://open.spotify.com/search/${encodeURIComponent(t.artist + " " + t.title)}/tracks`;
+      resolveSpotify(t.artist, t.title, spotifyLink);
+      document.getElementById("stat-guesses").textContent = String(attemptCount);
+      statStreak.textContent = streak;
+      resultPanel.style.display = "block";
+      resultPanel.className     = "result-panel " + (won ? "win" : "lose");
+      makePreviewPlayer(audioEl,
+        document.getElementById("preview-play-btn"),
+        document.getElementById("preview-bar-fill"),
+        document.getElementById("preview-time")
+      );
     } else {
+      updateSegBar(guessCount, segs, segTime);
       setStatus("");
     }
     return true;
@@ -386,7 +409,7 @@ function endGame(won) {
     document.getElementById("preview-bar-fill"),
     document.getElementById("preview-time")
   );
-  if (!endGame._fromRestore) saveEndlessSession();
+  saveEndlessSession();
 }
 
 nextBtn.addEventListener("click", () => {
