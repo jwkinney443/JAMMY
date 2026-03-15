@@ -461,44 +461,46 @@ async function loadDaily() {
     document.addEventListener("mousedown", e => { if (!e.target.closest("#daily-panel .guess-area")) dAcList.classList.remove("open"); });
   }
 
-  // Restore from save or load fresh
-  const saved = localStorage.getItem("jammy_daily_" + getTodayKey());
-  if (saved) {
-    const data = JSON.parse(saved);
-    dailyState.track = data.track; dailyState.gameOver = true;
-    dailyAudio.src = data.track.preview;
-    document.getElementById("d-album-art").src = data.track.cover;
-    document.getElementById("d-album-art").classList.add("revealed");
-    document.getElementById("d-cover-overlay").classList.add("hidden");
-    document.getElementById("d-guess-input").disabled = true;
-    document.getElementById("d-skip-btn").disabled    = true;
-    data.rows.forEach(r => addGuessRow(dGuessesEl, makeGuessRow(r.text, r.type, "", r.artistMatch)));
-    endDailyGame(data.won, true, data.attempts);
-    return;
-  }
-
-  // Check for admin override first, then fall back to seeded random
+  // Always check override first before looking at saved result
   document.getElementById("d-clip-label").textContent = "Loading...";
-  let track = null;
   let overrideSetAt = null;
+  let overrideTrack = null;
   try {
     const ovRes = await fetch("/api/daily-override");
     const ovData = await ovRes.json();
     if (ovData.track && ovData.track.preview) {
-      track = ovData.track;
+      overrideTrack = ovData.track;
       overrideSetAt = ovData.setAt || null;
     }
     dailyState.overrideSetAt = overrideSetAt;
   } catch {}
 
-  // If there's a saved result but the override has changed since, clear it
-  const savedRaw = localStorage.getItem("jammy_daily_" + getTodayKey());
-  if (savedRaw && overrideSetAt) {
-    const savedData = JSON.parse(savedRaw);
-    if (savedData.overrideSetAt !== overrideSetAt) {
+  // Check saved result — but invalidate it if override has changed
+  const saved = localStorage.getItem("jammy_daily_" + getTodayKey());
+  if (saved) {
+    const data = JSON.parse(saved);
+    // If override was set after they completed, wipe their save so they replay
+    if (overrideSetAt && data.overrideSetAt !== overrideSetAt) {
       localStorage.removeItem("jammy_daily_" + getTodayKey());
+    } else {
+      // Valid save — restore result
+      dailyState.track = data.track; dailyState.gameOver = true;
+      dailyAudio.src = data.track.preview;
+      dailyAudio.load();
+      document.getElementById("d-album-art").src = data.track.cover;
+      document.getElementById("d-album-art").classList.add("revealed");
+      document.getElementById("d-cover-overlay").classList.add("hidden");
+      document.getElementById("d-guess-input").disabled = true;
+      document.getElementById("d-skip-btn").disabled    = true;
+      data.rows.forEach(r => addGuessRow(dGuessesEl, makeGuessRow(r.text, r.type, "", r.artistMatch)));
+      endDailyGame(data.won, true, data.attempts);
+      return;
     }
   }
+
+  // Load fresh track — use override if set, otherwise seeded random
+
+  let track = overrideTrack;
 
   if (!track) {
     // Fall back to seeded random
@@ -518,6 +520,7 @@ async function loadDaily() {
   dailyState.track      = track;
   dailyState.clipOffset = track._clipOffset ?? (Math.random() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]));
   dailyAudio.src = track.preview;
+  dailyAudio.load();
   document.getElementById("d-album-art").src = track.cover;
   document.getElementById("d-clip-label").textContent = "Press play to hear the clip";
   updateSegBar(0, dSegs, dSegTime);
