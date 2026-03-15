@@ -51,6 +51,35 @@ function spotifyGet(apiPath, token) {
   });
 }
 
+// ── Daily override ────────────────────────────────────────────────────────────
+const OVERRIDE_FILE = path.join(__dirname, "daily-override.json");
+
+function getTodayDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function readOverride() {
+  try {
+    const data = JSON.parse(fs.readFileSync(OVERRIDE_FILE, "utf8"));
+    return data.date === getTodayDateStr() ? { track: data.track, setAt: data.setAt } : null;
+  } catch { return null; }
+}
+
+function writeOverride(track) {
+  fs.writeFileSync(OVERRIDE_FILE, JSON.stringify({ date: getTodayDateStr(), track, setAt: Date.now() }), "utf8");
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", c => body += c);
+    req.on("end", () => { try { resolve(JSON.parse(body)); } catch { reject(new Error("Invalid JSON")); } });
+    req.on("error", reject);
+  });
+}
+
+
 function deezerGet(apiPath) {
   return new Promise((resolve, reject) => {
     const req = https.request(
@@ -134,6 +163,41 @@ const server = http.createServer((req, res) => {
 
   const url = new URL(req.url, "http://localhost");
   const p = url.pathname;
+
+  // DAILY OVERRIDE — get today's pinned track if set
+  if (p === "/api/daily-override") {
+    const override = readOverride();
+    sendJson(res, 200, override ? { track: override.track, setAt: override.setAt } : { track: null });
+    return;
+  }
+
+  // ADMIN — set today's daily track (password protected)
+  if (p === "/api/admin/set-daily") {
+    if (req.method !== "POST") { sendJson(res, 405, { error: "POST only" }); return; }
+    const adminPass = process.env.ADMIN_PASSWORD;
+    if (!adminPass) { sendJson(res, 500, { error: "ADMIN_PASSWORD not set" }); return; }
+    const auth = req.headers["x-admin-password"];
+    if (auth !== adminPass) { sendJson(res, 401, { error: "Unauthorized" }); return; }
+    readBody(req)
+      .then(body => {
+        if (!body.track || !body.track.id) throw new Error("Missing track");
+        writeOverride(body.track);
+        sendJson(res, 200, { ok: true, date: getTodayDateStr(), track: body.track });
+      })
+      .catch(e => sendJson(res, 400, { error: e.message }));
+    return;
+  }
+
+  // ADMIN — clear today's override
+  if (p === "/api/admin/clear-daily") {
+    if (req.method !== "POST") { sendJson(res, 405, { error: "POST only" }); return; }
+    const adminPass = process.env.ADMIN_PASSWORD;
+    const auth = req.headers["x-admin-password"];
+    if (auth !== adminPass) { sendJson(res, 401, { error: "Unauthorized" }); return; }
+    try { fs.unlinkSync(OVERRIDE_FILE); } catch {}
+    sendJson(res, 200, { ok: true });
+    return;
+  }
 
   // CHART — fetch tracks from a specific Deezer genre chart
   if (p === "/api/chart") {

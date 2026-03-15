@@ -462,23 +462,50 @@ async function loadDaily() {
     return;
   }
 
-  // Load today's seeded track
+  // Check for admin override first, then fall back to seeded random
   document.getElementById("d-clip-label").textContent = "Loading...";
-  const rand  = seededRand(getDaySeed());
-  const genre = CHART_GENRES[Math.floor(rand() * CHART_GENRES.length)];
+  let track = null;
+  let overrideSetAt = null;
   try {
-    const valid = await fetchChart(genre);
-    if (!valid.length) throw new Error("No tracks");
-    const track = valid[Math.floor(rand() * valid.length)];
-    dailyState.track     = track;
-    dailyState.clipOffset = rand() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
-    dailyAudio.src = track.preview;
-    document.getElementById("d-album-art").src = track.cover;
-    document.getElementById("d-clip-label").textContent = "Press play to hear the clip";
-    updateSegBar(0, dSegs, dSegTime);
-  } catch {
-    document.getElementById("d-clip-label").textContent = "Could not load today's track.";
+    const ovRes = await fetch("/api/daily-override");
+    const ovData = await ovRes.json();
+    if (ovData.track && ovData.track.preview) {
+      track = ovData.track;
+      overrideSetAt = ovData.setAt || null;
+      dailyState.overrideSetAt = overrideSetAt;
+    }
+  } catch {}
+
+  // If there's a saved result but the override has changed since, clear it
+  const savedRaw = localStorage.getItem("jammy_daily_" + getTodayKey());
+  if (savedRaw && overrideSetAt) {
+    const savedData = JSON.parse(savedRaw);
+    if (savedData.overrideSetAt !== overrideSetAt) {
+      localStorage.removeItem("jammy_daily_" + getTodayKey());
+    }
   }
+
+  if (!track) {
+    // Fall back to seeded random
+    const rand  = seededRand(getDaySeed());
+    const genre = CHART_GENRES[Math.floor(rand() * CHART_GENRES.length)];
+    try {
+      const valid = await fetchChart(genre);
+      if (!valid.length) throw new Error("No tracks");
+      track = valid[Math.floor(rand() * valid.length)];
+      track._clipOffset = rand() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
+    } catch {
+      document.getElementById("d-clip-label").textContent = "Could not load today's track.";
+      return;
+    }
+  }
+
+  dailyState.track      = track;
+  dailyState.clipOffset = track._clipOffset ?? (Math.random() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]));
+  dailyAudio.src = track.preview;
+  document.getElementById("d-album-art").src = track.cover;
+  document.getElementById("d-clip-label").textContent = "Press play to hear the clip";
+  updateSegBar(0, dSegs, dSegTime);
 }
 
 function playDailyClip() {
@@ -544,7 +571,7 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
       type: r.classList.contains("correct") ? "correct" : r.classList.contains("warm") ? "warm" : r.classList.contains("skipped") ? "skipped" : "wrong",
       artistMatch: r.classList.contains("warm")
     }));
-    localStorage.setItem("jammy_daily_" + getTodayKey(), JSON.stringify({ won, track: dailyState.track, attempts: finalCount, rows }));
+    localStorage.setItem("jammy_daily_" + getTodayKey(), JSON.stringify({ won, track: dailyState.track, attempts: finalCount, rows, overrideSetAt: dailyState.overrideSetAt || null }));
   }
 
   const savedData     = JSON.parse(localStorage.getItem("jammy_daily_" + getTodayKey()) || "{}");

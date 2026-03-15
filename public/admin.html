@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Jammy Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0a; --surface: #141414; --surface2: #1c1c1c; --border: #262626;
+    --accent: #c0334d; --text: #f0f0f0; --muted: #5a5a5a; --muted2: #888;
+    --correct: #4caf50; --red: #e05252;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+  header { margin-bottom: 2rem; text-align: center; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.12em; }
+  .logo em { color: var(--accent); font-style: normal; }
+  .subtitle { font-size: 12px; color: var(--muted2); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 520px; margin-bottom: 1rem; }
+  .card h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 1rem; }
+  label { font-size: 11px; color: var(--muted2); letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+  input[type="password"], input[type="text"] {
+    width: 100%; padding: 11px 14px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px;
+    outline: none; transition: border-color 0.2s; margin-bottom: 1rem;
+  }
+  input:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+  .btn {
+    padding: 11px 20px; border: none; border-radius: 8px; cursor: pointer;
+    font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 0.1em;
+    transition: opacity 0.15s; width: 100%;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); margin-top: 0.5rem; }
+  .btn-danger:hover { background: rgba(224,82,82,0.1); }
+
+  /* AC dropdown */
+  .search-wrap { position: relative; }
+  #ac-list {
+    position: absolute; top: calc(100% - 0.9rem); left: 0; right: 0;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 0 0 8px 8px;
+    z-index: 20; display: none; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    max-height: 280px; overflow-y: auto;
+  }
+  #ac-list.open { display: block; }
+  .ac-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover { background: var(--surface); }
+  .ac-thumb { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: var(--border); }
+  .ac-info { min-width: 0; flex: 1; }
+  .ac-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ac-sub   { font-size: 11px; color: var(--muted2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ac-msg   { padding: 12px; font-size: 12px; color: var(--muted2); text-align: center; font-style: italic; }
+
+  /* Selected track preview */
+  #selected-track { display: none; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 1rem; align-items: center; gap: 12px; }
+  #selected-track.visible { display: flex; }
+  #selected-track img { width: 52px; height: 52px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+  .sel-info { flex: 1; min-width: 0; }
+  .sel-title  { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sel-artist { font-size: 12px; color: var(--muted2); margin-top: 2px; }
+  #clear-sel  { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; flex-shrink: 0; padding: 0; }
+
+  /* Status messages */
+  #status { font-size: 13px; margin-top: 1rem; padding: 10px 14px; border-radius: 8px; display: none; }
+  #status.success { background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.3); color: var(--correct); display: block; }
+  #status.error   { background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3); color: var(--red); display: block; }
+
+  /* Current override display */
+  #current-override { font-size: 12px; color: var(--muted2); }
+  #current-override strong { color: var(--text); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-left: 6px; }
+  .tag-active { background: rgba(76,175,80,0.15); color: var(--correct); border: 1px solid rgba(76,175,80,0.3); }
+  .tag-none   { background: var(--surface2); color: var(--muted2); border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">JAM<em>MY</em></div>
+  <div class="subtitle">Admin — Daily Override</div>
+</header>
+
+<div class="card">
+  <h2>Today's Daily Track</h2>
+  <div id="current-override">Loading...</div>
+</div>
+
+<div class="card" id="auth-card">
+  <h2>Admin Login</h2>
+  <label for="password">Password</label>
+  <input type="password" id="password" placeholder="Enter admin password..." autocomplete="current-password"/>
+  <button class="btn btn-primary" id="login-btn">Login</button>
+</div>
+
+<div class="card" id="set-card" style="display:none;">
+  <h2>Set Today's Song</h2>
+  <label for="search-input">Search for a track</label>
+  <div class="search-wrap">
+    <input type="text" id="search-input" placeholder="Artist or song name..." autocomplete="off"/>
+    <div id="ac-list"></div>
+  </div>
+  <div id="selected-track">
+    <img id="sel-cover" src="" alt=""/>
+    <div class="sel-info">
+      <div class="sel-title"  id="sel-title"></div>
+      <div class="sel-artist" id="sel-artist"></div>
+    </div>
+    <button id="clear-sel">&times;</button>
+  </div>
+  <button class="btn btn-primary" id="set-btn" disabled>Set as Today's Daily</button>
+  <button class="btn btn-danger"  id="clear-btn">Clear Override (use random)</button>
+  <div id="status"></div>
+</div>
+
+<script>
+let password = "";
+let chosenTrack = null;
+let searchTimer = null;
+
+const loginBtn     = document.getElementById("login-btn");
+const setCard      = document.getElementById("set-card");
+const authCard     = document.getElementById("auth-card");
+const searchInput  = document.getElementById("search-input");
+const acList       = document.getElementById("ac-list");
+const selectedEl   = document.getElementById("selected-track");
+const selCover     = document.getElementById("sel-cover");
+const selTitle     = document.getElementById("sel-title");
+const selArtist    = document.getElementById("sel-artist");
+const clearSel     = document.getElementById("clear-sel");
+const setBtn       = document.getElementById("set-btn");
+const clearBtn     = document.getElementById("clear-btn");
+const statusEl     = document.getElementById("status");
+const currentEl    = document.getElementById("current-override");
+
+// Load current override on page load
+async function loadCurrentOverride() {
+  try {
+    const res  = await fetch("/api/daily-override");
+    const data = await res.json();
+    if (data.track) {
+      currentEl.innerHTML = `<strong>${data.track.title}</strong> by <strong>${data.track.artist}</strong><span class="tag tag-active">Active today</span>`;
+    } else {
+      currentEl.innerHTML = `Using seeded random track<span class="tag tag-none">No override</span>`;
+    }
+  } catch {
+    currentEl.textContent = "Could not load current status.";
+  }
+}
+loadCurrentOverride();
+
+// Login
+loginBtn.addEventListener("click", () => {
+  const pass = document.getElementById("password").value.trim();
+  if (!pass) return;
+  password = pass;
+  authCard.style.display = "none";
+  setCard.style.display  = "block";
+});
+document.getElementById("password").addEventListener("keydown", e => {
+  if (e.key === "Enter") loginBtn.click();
+});
+
+// Search autocomplete
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim();
+  clearTimeout(searchTimer);
+  if (q.length < 2) { acList.classList.remove("open"); return; }
+  acList.innerHTML = "<div class='ac-msg'>Searching...</div>";
+  acList.classList.add("open");
+  searchTimer = setTimeout(async () => {
+    try {
+      const res    = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const tracks = await res.json();
+      if (!tracks.length) { acList.innerHTML = "<div class='ac-msg'>No results</div>"; return; }
+      acList.innerHTML = "";
+      tracks.forEach(track => {
+        const item = document.createElement("div");
+        item.className = "ac-item";
+        item.innerHTML = track.cover
+          ? `<img class="ac-thumb" src="${track.cover}" alt=""><div class="ac-info"><div class="ac-title">${esc(track.title)}</div><div class="ac-sub">${esc(track.artist)} &middot; ${esc(track.album)}</div></div>`
+          : `<div class="ac-info"><div class="ac-title">${esc(track.title)}</div><div class="ac-sub">${esc(track.artist)}</div></div>`;
+        item.addEventListener("mousedown", e => { e.preventDefault(); pickTrack(track); });
+        acList.appendChild(item);
+      });
+    } catch { acList.innerHTML = "<div class='ac-msg'>Error searching</div>"; }
+  }, 280);
+});
+document.addEventListener("mousedown", e => { if (!e.target.closest(".search-wrap")) acList.classList.remove("open"); });
+
+function pickTrack(track) {
+  chosenTrack = track;
+  searchInput.value = "";
+  acList.classList.remove("open");
+  selCover.src = track.cover || "";
+  selTitle.textContent  = track.title;
+  selArtist.textContent = track.artist;
+  selectedEl.classList.add("visible");
+  setBtn.disabled = false;
+}
+
+clearSel.addEventListener("click", () => {
+  chosenTrack = null;
+  selectedEl.classList.remove("visible");
+  setBtn.disabled = true;
+  searchInput.value = "";
+});
+
+// Set override
+setBtn.addEventListener("click", async () => {
+  if (!chosenTrack) return;
+  showStatus("Saving...", "");
+  try {
+    const res  = await fetch("/api/admin/set-daily", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({ track: chosenTrack })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    showStatus(`✓ Set! Today's daily is now "${chosenTrack.title}" by ${chosenTrack.artist}`, "success");
+    loadCurrentOverride();
+  } catch(e) {
+    showStatus(`✗ Error: ${e.message}`, "error");
+  }
+});
+
+// Clear override
+clearBtn.addEventListener("click", async () => {
+  if (!confirm("Clear the override? Tomorrow's daily will use the random seed.")) return;
+  try {
+    const res  = await fetch("/api/admin/clear-daily", {
+      method: "POST",
+      headers: { "x-admin-password": password }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    showStatus("✓ Override cleared. Using seeded random today.", "success");
+    loadCurrentOverride();
+  } catch(e) {
+    showStatus(`✗ Error: ${e.message}`, "error");
+  }
+});
+
+function showStatus(msg, type) {
+  statusEl.textContent = msg;
+  statusEl.className   = type || "";
+  if (type) statusEl.style.display = "block";
+}
+
+function esc(str) {
+  return (str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+</script>
+</body>
+</html>
