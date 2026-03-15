@@ -541,8 +541,18 @@ async function loadDaily() {
   updateSegBar(0, dSegs, dSegTime);
 }
 
-function playDailyClip() {
+async function playDailyClip() {
   if (!dailyState.track) return;
+  // Re-fetch a fresh preview URL before playing in case the old one expired
+  try {
+    const res  = await fetch(`/api/track/${dailyState.track.id}`);
+    const data = await res.json();
+    if (data.preview && !data.error && data.preview !== dailyAudio.src) {
+      dailyAudio.src = data.preview;
+      dailyAudio.load();
+      await new Promise(r => { dailyAudio.oncanplay = r; setTimeout(r, 2000); });
+    }
+  } catch {}
   const secs = CLIP_DURATIONS[Math.min(dailyState.guessCount, CLIP_DURATIONS.length - 1)];
   dailyAudio.currentTime = dailyState.clipOffset;
   dailyAudio.play().catch(() => {});
