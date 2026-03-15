@@ -257,8 +257,17 @@ enforceClipLimit(audioEl,
   stopClip
 );
 
-function playClip() {
+async function playClip() {
   if (!currentTrack) return;
+  try {
+    const res  = await fetch(`/api/track/${currentTrack.id}`);
+    const data = await res.json();
+    if (data.preview && !data.error && data.preview !== audioEl.src) {
+      audioEl.src = data.preview;
+      audioEl.load();
+      await new Promise(r => { audioEl.oncanplay = r; setTimeout(r, 2000); });
+    }
+  } catch {}
   const secs = CLIP_DURATIONS[Math.min(guessCount, CLIP_DURATIONS.length - 1)];
   audioEl.currentTime = clipOffset;
   audioEl.play().catch(() => setStatus("Tap to enable audio first"));
