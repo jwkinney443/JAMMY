@@ -279,6 +279,8 @@ function restoreEndlessSession() {
 
 
 
+function setStatus(msg) { clipLabel.textContent = msg || "Press play to hear the clip"; }
+
 async function loadTrack() {
   setStatus("Loading track...");
   const track = await fetchRandomTrack(playedIds);
