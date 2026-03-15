@@ -4,7 +4,11 @@
 const CLIP_DURATIONS = [1, 2, 4, 7, 11, 16];
 const MAX_GUESSES    = 6;
 const PREVIEW_LENGTH = 30;
-const TODAY_KEY      = new Date().toISOString().slice(0, 10);
+// Always use local date so it matches the user's timezone
+function getTodayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 const CHART_GENRES = [0, 0, 0, 0, 132, 132, 152, 116, 165, 113, 197, 106, 169];
 
@@ -363,54 +367,87 @@ function switchTab(tab) {
   document.getElementById("tab-play").classList.toggle("active", tab === "play");
   document.getElementById("tab-daily").classList.toggle("active", tab === "daily");
   document.getElementById("tab-challenge").classList.toggle("active", tab === "challenge");
-  if (tab === "daily" && !dailyState.loaded) loadDaily();
+  if (tab === "daily") {
+    const today = getTodayKey();
+    // Reload if never loaded, or if the date has changed since last load
+    if (!dailyState.loaded || dailyState.loadedForDate !== today) {
+      // Reset state for new day
+      dailyState.loaded = false;
+      dailyState.loadedForDate = today;
+      dailyState.track = null; dailyState.guessCount = 0; dailyState.attemptCount = 0;
+      dailyState.gameOver = false; dailyState.isPlaying = false;
+      // Clear the daily panel UI so it rebuilds fresh
+      document.getElementById("d-guesses").innerHTML = "";
+      document.getElementById("d-result-panel").style.display = "none";
+      document.getElementById("d-album-art").className = "game-art";
+      document.getElementById("d-cover-overlay").className = "game-overlay";
+      document.getElementById("d-guess-input").disabled = false;
+      document.getElementById("d-skip-btn").disabled = false;
+      loadDaily();
+    }
+  }
 }
 document.getElementById("tab-play").addEventListener("click", () => switchTab("play"));
 document.getElementById("tab-daily").addEventListener("click", () => switchTab("daily"));
 document.getElementById("tab-challenge").addEventListener("click", () => switchTab("challenge"));
 
+// If user returns to the page after midnight, reload daily if date has changed
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && dailyState.loadedForDate && dailyState.loadedForDate !== getTodayKey()) {
+    // Date has rolled over — reset so next time they click Daily it reloads fresh
+    dailyState.loaded = false;
+    dailyState.loadedForDate = null;
+    // If they're currently on the daily tab, reload immediately
+    if (document.getElementById("daily-panel").classList.contains("active")) {
+      switchTab("daily");
+    }
+  }
+});
+
 // ── Daily mode ────────────────────────────────────────────────────────────────
 const dailyAudio = document.getElementById("daily-audio");
-const dailyState = { loaded: false, track: null, guessCount: 0, attemptCount: 0, gameOver: false, isPlaying: false, clipTimer: null, progressRaf: null, clipStart: 0, clipOffset: 0 };
+const dailyState = { loaded: false, loadedForDate: null, track: null, guessCount: 0, attemptCount: 0, gameOver: false, isPlaying: false, clipTimer: null, progressRaf: null, clipStart: 0, clipOffset: 0 };
 const dSegs      = [0,1,2,3,4,5].map(i => document.getElementById("dseg-" + i));
 const dSegTime   = document.getElementById("dseg-time");
 const dGuessesEl = document.getElementById("d-guesses");
 
 async function loadDaily() {
   dailyState.loaded = true;
+  dailyState.loadedForDate = getTodayKey();
   renderEmptySlots(dGuessesEl);
-  makeVolumeControls(dailyAudio, document.getElementById("d-vol-btn"), document.getElementById("d-vol-slider"));
 
-  // Enforce clip limit on daily audio too
-  enforceClipLimit(dailyAudio,
-    () => dailyState.gameOver ? null : dailyState.clipOffset + CLIP_DURATIONS[Math.min(dailyState.guessCount, CLIP_DURATIONS.length - 1)],
-    stopDailyClip
-  );
-
-  document.getElementById("d-big-play").addEventListener("click", () => {
-    if (!dailyState.gameOver) dailyState.isPlaying ? stopDailyClip() : playDailyClip();
-  });
-  document.getElementById("d-skip-btn").addEventListener("click", () => {
-    if (dailyState.gameOver) return;
-    stopDailyClip();
-    addGuessRow(dGuessesEl, makeGuessRow("\u2014 skipped \u2014", "skipped"));
-    dailyState.attemptCount++; dailyState.guessCount++;
-    document.getElementById("d-guess-input").value = "";
-    if (dailyState.guessCount >= MAX_GUESSES) endDailyGame(false, false, dailyState.attemptCount);
-    else updateSegBar(dailyState.guessCount, dSegs, dSegTime);
-  });
-
-  const dInput  = document.getElementById("d-guess-input");
-  const dAcList = document.getElementById("d-ac-list");
-  makeSearchHandler(dInput, dAcList, track => {
-    dInput.value = `${track.title} \u2014 ${track.artist}`;
-    dAcList.classList.remove("open");
-    submitDailyGuess(track);
-  });
-  document.addEventListener("mousedown", e => { if (!e.target.closest("#daily-panel .guess-area")) dAcList.classList.remove("open"); });
+  // Wire events only once
+  if (!dailyState.wired) {
+    dailyState.wired = true;
+    makeVolumeControls(dailyAudio, document.getElementById("d-vol-btn"), document.getElementById("d-vol-slider"));
+    enforceClipLimit(dailyAudio,
+      () => dailyState.gameOver ? null : dailyState.clipOffset + CLIP_DURATIONS[Math.min(dailyState.guessCount, CLIP_DURATIONS.length - 1)],
+      stopDailyClip
+    );
+    document.getElementById("d-big-play").addEventListener("click", () => {
+      if (!dailyState.gameOver) dailyState.isPlaying ? stopDailyClip() : playDailyClip();
+    });
+    document.getElementById("d-skip-btn").addEventListener("click", () => {
+      if (dailyState.gameOver) return;
+      stopDailyClip();
+      addGuessRow(dGuessesEl, makeGuessRow("\u2014 skipped \u2014", "skipped"));
+      dailyState.attemptCount++; dailyState.guessCount++;
+      document.getElementById("d-guess-input").value = "";
+      if (dailyState.guessCount >= MAX_GUESSES) endDailyGame(false, false, dailyState.attemptCount);
+      else updateSegBar(dailyState.guessCount, dSegs, dSegTime);
+    });
+    const dInput  = document.getElementById("d-guess-input");
+    const dAcList = document.getElementById("d-ac-list");
+    makeSearchHandler(dInput, dAcList, track => {
+      dInput.value = `${track.title} \u2014 ${track.artist}`;
+      dAcList.classList.remove("open");
+      submitDailyGuess(track);
+    });
+    document.addEventListener("mousedown", e => { if (!e.target.closest("#daily-panel .guess-area")) dAcList.classList.remove("open"); });
+  }
 
   // Restore from save or load fresh
-  const saved = localStorage.getItem("jammy_daily_" + TODAY_KEY);
+  const saved = localStorage.getItem("jammy_daily_" + getTodayKey());
   if (saved) {
     const data = JSON.parse(saved);
     dailyState.track = data.track; dailyState.gameOver = true;
@@ -507,10 +544,10 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
       type: r.classList.contains("correct") ? "correct" : r.classList.contains("warm") ? "warm" : r.classList.contains("skipped") ? "skipped" : "wrong",
       artistMatch: r.classList.contains("warm")
     }));
-    localStorage.setItem("jammy_daily_" + TODAY_KEY, JSON.stringify({ won, track: dailyState.track, attempts: finalCount, rows }));
+    localStorage.setItem("jammy_daily_" + getTodayKey(), JSON.stringify({ won, track: dailyState.track, attempts: finalCount, rows }));
   }
 
-  const savedData     = JSON.parse(localStorage.getItem("jammy_daily_" + TODAY_KEY) || "{}");
+  const savedData     = JSON.parse(localStorage.getItem("jammy_daily_" + getTodayKey()) || "{}");
   const finalAttempts = savedData.attempts ?? finalCount;
   const t = dailyState.track;
 
@@ -541,7 +578,7 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
   const emojiMap  = { correct: "\uD83D\uDFE9", warm: "\uD83D\uDFE8", wrong: "\uD83D\uDFE5", skipped: "\u2B1C" };
   const blocks    = Array.from({ length: 6 }, (_, i) => emojiMap[rows[i]?.type] || "\u2B1B").join("");
   const scoreText = won ? `${finalAttempts}/6` : `X/6`;
-  const shareText = `\uD83C\uDFB5 Jammy Daily \u2014 ${TODAY_KEY}\n${scoreText}\n\n${blocks}\n\n\uD83D\uDD17 ${location.origin}${location.pathname}`;
+  const shareText = `\uD83C\uDFB5 Jammy Daily \u2014 ${getTodayKey()}\n${scoreText}\n\n${blocks}\n\n\uD83D\uDD17 ${location.origin}${location.pathname}`;
   document.getElementById("daily-share-blocks").textContent = blocks;
   document.getElementById("daily-share-btn").addEventListener("click", () => {
     navigator.clipboard.writeText(shareText).then(() => {
