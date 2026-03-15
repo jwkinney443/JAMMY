@@ -209,7 +209,52 @@ const playedIds = new Set();
 streakEl.textContent = streak;
 makeVolumeControls(audioEl, document.getElementById("vol-btn"), document.getElementById("vol-slider"));
 
-function setStatus(msg) { clipLabel.textContent = msg || "Press play to hear the clip"; }
+// ── Session persistence (survives refresh, clears on tab close) ───────────────
+function saveEndlessSession() {
+  if (!currentTrack) return;
+  const rows = Array.from(guessesEl.querySelectorAll(".guess-row")).map(r => ({
+    text: r.querySelector(".guess-text")?.textContent || "",
+    type: r.classList.contains("correct") ? "correct" : r.classList.contains("warm") ? "warm" : r.classList.contains("skipped") ? "skipped" : "wrong",
+    artistMatch: r.classList.contains("warm")
+  }));
+  sessionStorage.setItem("jammy_endless", JSON.stringify({
+    track: currentTrack, guessCount, attemptCount, gameOver, clipOffset, rows
+  }));
+}
+
+function clearEndlessSession() { sessionStorage.removeItem("jammy_endless"); }
+
+function restoreEndlessSession() {
+  const raw = sessionStorage.getItem("jammy_endless");
+  if (!raw) return false;
+  try {
+    const s = JSON.parse(raw);
+    if (!s.track?.preview) return false;
+    currentTrack = s.track; guessCount = s.guessCount; attemptCount = s.attemptCount;
+    gameOver = s.gameOver; clipOffset = s.clipOffset;
+    playedIds.add(s.track.id);
+    albumArt.src = s.track.cover; audioEl.src = s.track.preview; audioEl.load();
+    updateSegBar(guessCount, segs, segTime);
+    renderEmptySlots(guessesEl);
+    s.rows.forEach((r, i) => {
+      const num = r.type !== "skipped" ? `${i + 1}/6` : "";
+      addGuessRow(guessesEl, makeGuessRow(r.text, r.type, num, r.artistMatch));
+    });
+    if (gameOver) {
+      guessInput.disabled = true; skipBtn.disabled = true;
+      albumArt.classList.add("revealed"); coverOverlay.classList.add("hidden");
+      // Rebuild result panel — trigger endGame display without re-saving
+      endGame._fromRestore = true;
+      endGame(s.rows.some(r => r.type === "correct"));
+      endGame._fromRestore = false;
+    } else {
+      setStatus("");
+    }
+    return true;
+  } catch { return false; }
+}
+
+
 
 async function loadTrack() {
   setStatus("Loading track...");
@@ -222,6 +267,7 @@ async function loadTrack() {
   clipOffset   = Math.random() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
   setStatus("");
   updateSegBar(guessCount, segs, segTime);
+  saveEndlessSession();
 }
 
 bigPlay.addEventListener("click", () => { if (!gameOver) isPlaying ? stopClip() : playClip(); });
@@ -296,7 +342,7 @@ skipBtn.addEventListener("click", () => {
   attemptCount++; guessCount++;
   guessInput.value = "";
   if (guessCount >= MAX_GUESSES) endGame(false);
-  else updateSegBar(guessCount, segs, segTime);
+  else { updateSegBar(guessCount, segs, segTime); saveEndlessSession(); }
 });
 
 function submitGuess(track) {
@@ -311,7 +357,7 @@ function submitGuess(track) {
   addGuessRow(guessesEl, makeGuessRow(`${track.artist} \u2014 ${track.title}`, type, `${guessCount + 1}/6`, artistMatch));
   attemptCount++; guessInput.value = "";
   if (correct) endGame(true);
-  else { guessCount++; if (guessCount >= MAX_GUESSES) endGame(false); else updateSegBar(guessCount, segs, segTime); }
+  else { guessCount++; if (guessCount >= MAX_GUESSES) endGame(false); else { updateSegBar(guessCount, segs, segTime); saveEndlessSession(); } }
 }
 
 function endGame(won) {
@@ -340,9 +386,11 @@ function endGame(won) {
     document.getElementById("preview-bar-fill"),
     document.getElementById("preview-time")
   );
+  if (!endGame._fromRestore) saveEndlessSession();
 }
 
 nextBtn.addEventListener("click", () => {
+  clearEndlessSession();
   currentTrack = null; guessCount = 0; attemptCount = 0;
   gameOver = false; isPlaying = false; clipOffset = 0;
   guessInput.disabled = false; guessInput.value = ""; skipBtn.disabled = false;
@@ -485,6 +533,7 @@ async function loadDaily() {
     } else {
       // Valid save — restore result
       dailyState.track = data.track; dailyState.gameOver = true;
+      dailyState.clipOffset = data.clipOffset ?? 0;
       dailyAudio.src = data.track.preview;
       dailyAudio.load();
       document.getElementById("d-album-art").src = data.track.cover;
@@ -501,16 +550,17 @@ async function loadDaily() {
   // Load fresh track — use override if set, otherwise seeded random
 
   let track = overrideTrack;
+  // Always derive clip offset from the day seed so everyone gets the same position
+  const rand = seededRand(getDaySeed());
+  const seededOffset = rand() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
 
   if (!track) {
     // Fall back to seeded random
-    const rand  = seededRand(getDaySeed());
     const genre = CHART_GENRES[Math.floor(rand() * CHART_GENRES.length)];
     try {
       const valid = await fetchChart(genre);
       if (!valid.length) throw new Error("No tracks");
       track = valid[Math.floor(rand() * valid.length)];
-      track._clipOffset = rand() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
     } catch {
       document.getElementById("d-clip-label").textContent = "Could not load today's track.";
       return;
@@ -518,7 +568,7 @@ async function loadDaily() {
   }
 
   dailyState.track      = track;
-  dailyState.clipOffset = track._clipOffset ?? (Math.random() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]));
+  dailyState.clipOffset = seededOffset;
   dailyAudio.src = track.preview;
   dailyAudio.load();
   document.getElementById("d-album-art").src = track.cover;
@@ -589,7 +639,7 @@ function endDailyGame(won, fromSave = false, explicitCount = null) {
       type: r.classList.contains("correct") ? "correct" : r.classList.contains("warm") ? "warm" : r.classList.contains("skipped") ? "skipped" : "wrong",
       artistMatch: r.classList.contains("warm")
     }));
-    localStorage.setItem("jammy_daily_" + getTodayKey(), JSON.stringify({ won, track: dailyState.track, attempts: finalCount, rows, overrideSetAt: dailyState.overrideSetAt || null }));
+    localStorage.setItem("jammy_daily_" + getTodayKey(), JSON.stringify({ won, track: dailyState.track, attempts: finalCount, rows, overrideSetAt: dailyState.overrideSetAt || null, clipOffset: dailyState.clipOffset }));
   }
 
   const savedData     = JSON.parse(localStorage.getItem("jammy_daily_" + getTodayKey()) || "{}");
@@ -850,9 +900,10 @@ function initChallengeGame(track) {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 initEndless();
-loadTrack(); // always load endless track in background
+const restoredSession = restoreEndlessSession();
+if (!restoredSession) loadTrack();
 checkChallengeParam().then(isChallenge => {
-  if (!isChallenge) switchTab("daily"); // default to daily on load
+  if (!isChallenge) switchTab("daily");
 });
 
 })();
