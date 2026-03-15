@@ -30,13 +30,13 @@
 
 <main>
   <div id="tab-bar">
-    <button class="tab-btn active" id="tab-play">&#9654; Endless</button>
-    <button class="tab-btn" id="tab-daily">&#128197; Daily</button>
+    <button class="tab-btn" id="tab-play">&#9654; Endless</button>
+    <button class="tab-btn active" id="tab-daily">&#128197; Daily</button>
     <button class="tab-btn" id="tab-challenge">&#128279; Challenge</button>
   </div>
 
   <!-- ── ENDLESS ── -->
-  <div id="play-panel">
+  <div id="play-panel" class="hidden">
     <p class="tab-intro">Play an endless stream of songs — a new random track every round.</p>
     <div class="game-visual">
       <img id="album-art" class="game-art" src="" alt=""/>
@@ -104,7 +104,7 @@
   </div>
 
   <!-- ── DAILY ── -->
-  <div id="daily-panel">
+  <div id="daily-panel" class="active">
     <p class="tab-intro">One song per day, same for everyone. Come back tomorrow for a new track!</p>
     <div class="game-visual">
       <img id="d-album-art" class="game-art" src="" alt=""/>
@@ -301,6 +301,7 @@
   <div class="howto">
     <strong>How to play:</strong> A song preview plays — guess the track before 6 tries.
     Each wrong guess or skip reveals a longer clip: <strong>1s &#8594; 2s &#8594; 4s &#8594; 7s &#8594; 11s &#8594; 16s</strong>.
+    After the round, links to Deezer, YouTube Music and Spotify are shown.
   </div>
 </main>
 

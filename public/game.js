@@ -847,7 +847,9 @@ function initChallengeGame(track) {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 initEndless();
-loadTrack(); // always load endless track
-checkChallengeParam(); // separately handle challenge param if present
+loadTrack(); // always load endless track in background
+checkChallengeParam().then(isChallenge => {
+  if (!isChallenge) switchTab("daily"); // default to daily on load
+});
 
 })();
