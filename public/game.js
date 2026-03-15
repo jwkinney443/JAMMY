@@ -209,76 +209,6 @@ const playedIds = new Set();
 streakEl.textContent = streak;
 makeVolumeControls(audioEl, document.getElementById("vol-btn"), document.getElementById("vol-slider"));
 
-// ── Session persistence (survives refresh, clears on tab close) ───────────────
-function saveEndlessSession() {
-  if (!currentTrack) return;
-  const rows = Array.from(guessesEl.querySelectorAll(".guess-row")).map(r => ({
-    text: r.querySelector(".guess-text")?.textContent || "",
-    type: r.classList.contains("correct") ? "correct" : r.classList.contains("warm") ? "warm" : r.classList.contains("skipped") ? "skipped" : "wrong",
-    artistMatch: r.classList.contains("warm")
-  }));
-  sessionStorage.setItem("jammy_endless", JSON.stringify({
-    track: currentTrack, guessCount, attemptCount, gameOver, clipOffset, rows
-  }));
-}
-
-function clearEndlessSession() { sessionStorage.removeItem("jammy_endless"); }
-
-function restoreEndlessSession() {
-  const raw = sessionStorage.getItem("jammy_endless");
-  if (!raw) return false;
-  try {
-    const s = JSON.parse(raw);
-    if (!s.track?.preview) return false;
-
-    currentTrack = s.track; guessCount = s.guessCount; attemptCount = s.attemptCount;
-    gameOver = s.gameOver; clipOffset = s.clipOffset;
-    playedIds.add(s.track.id);
-    albumArt.src = s.track.cover;
-    audioEl.src  = s.track.preview;
-    audioEl.load();
-
-    // Restore guess rows (slots already rendered by initEndless)
-    s.rows.forEach((r, i) => {
-      const num = r.type !== "skipped" ? `${i + 1}/6` : "";
-      addGuessRow(guessesEl, makeGuessRow(r.text, r.type, num, r.artistMatch));
-    });
-
-    if (gameOver) {
-      // Finished game — show result state without re-running endGame logic
-      guessInput.disabled = true; skipBtn.disabled = true;
-      albumArt.classList.add("revealed"); coverOverlay.classList.add("hidden");
-      const t = s.track;
-      const won = s.rows.some(r => r.type === "correct");
-      resultVerdict.textContent = won ? "YOU GOT IT!" : "NICE TRY";
-      resultVerdict.className   = "result-verdict " + (won ? "win" : "lose");
-      resultCover.src           = t.cover  || "";
-      resultTitle.textContent   = t.title  || "\u2014";
-      resultArtist.textContent  = t.artist || "\u2014";
-      resultAlbum.textContent   = t.album  || "";
-      deezerLink.href           = t.deezer || "#";
-      youtubeLink.href = `https://music.youtube.com/search?q=${encodeURIComponent(t.artist + " " + t.title)}`;
-      spotifyLink.href = `https://open.spotify.com/search/${encodeURIComponent(t.artist + " " + t.title)}/tracks`;
-      resolveSpotify(t.artist, t.title, spotifyLink);
-      document.getElementById("stat-guesses").textContent = String(attemptCount);
-      statStreak.textContent = streak;
-      resultPanel.style.display = "block";
-      resultPanel.className     = "result-panel " + (won ? "win" : "lose");
-      makePreviewPlayer(audioEl,
-        document.getElementById("preview-play-btn"),
-        document.getElementById("preview-bar-fill"),
-        document.getElementById("preview-time")
-      );
-    } else {
-      updateSegBar(guessCount, segs, segTime);
-      setStatus("");
-    }
-    return true;
-  } catch { return false; }
-}
-
-
-
 function setStatus(msg) { clipLabel.textContent = msg || "Press play to hear the clip"; }
 
 async function loadTrack() {
@@ -292,7 +222,6 @@ async function loadTrack() {
   clipOffset   = Math.random() * (PREVIEW_LENGTH - CLIP_DURATIONS[CLIP_DURATIONS.length - 1]);
   setStatus("");
   updateSegBar(guessCount, segs, segTime);
-  saveEndlessSession();
 }
 
 bigPlay.addEventListener("click", () => { if (!gameOver) isPlaying ? stopClip() : playClip(); });
@@ -367,7 +296,7 @@ skipBtn.addEventListener("click", () => {
   attemptCount++; guessCount++;
   guessInput.value = "";
   if (guessCount >= MAX_GUESSES) endGame(false);
-  else { updateSegBar(guessCount, segs, segTime); saveEndlessSession(); }
+  else { updateSegBar(guessCount, segs, segTime); }
 });
 
 function submitGuess(track) {
@@ -382,7 +311,7 @@ function submitGuess(track) {
   addGuessRow(guessesEl, makeGuessRow(`${track.artist} \u2014 ${track.title}`, type, `${guessCount + 1}/6`, artistMatch));
   attemptCount++; guessInput.value = "";
   if (correct) endGame(true);
-  else { guessCount++; if (guessCount >= MAX_GUESSES) endGame(false); else { updateSegBar(guessCount, segs, segTime); saveEndlessSession(); } }
+  else { guessCount++; if (guessCount >= MAX_GUESSES) endGame(false); else { updateSegBar(guessCount, segs, segTime); } }
 }
 
 function endGame(won) {
@@ -411,11 +340,9 @@ function endGame(won) {
     document.getElementById("preview-bar-fill"),
     document.getElementById("preview-time")
   );
-  saveEndlessSession();
 }
 
 nextBtn.addEventListener("click", () => {
-  clearEndlessSession();
   currentTrack = null; guessCount = 0; attemptCount = 0;
   gameOver = false; isPlaying = false; clipOffset = 0;
   guessInput.disabled = false; guessInput.value = ""; skipBtn.disabled = false;
@@ -541,9 +468,14 @@ async function loadDaily() {
   try {
     const ovRes = await fetch("/api/daily-override");
     const ovData = await ovRes.json();
-    if (ovData.track && ovData.track.preview) {
-      overrideTrack = ovData.track;
+    if (ovData.track && ovData.track.id) {
       overrideSetAt = ovData.setAt || null;
+      // Re-fetch track from Deezer to get a fresh (non-expired) preview URL
+      const freshRes = await fetch(`/api/track/${ovData.track.id}`);
+      const freshTrack = await freshRes.json();
+      if (freshTrack.preview && !freshTrack.error) {
+        overrideTrack = freshTrack;
+      }
     }
     dailyState.overrideSetAt = overrideSetAt;
   } catch {}
@@ -556,10 +488,18 @@ async function loadDaily() {
     if (overrideSetAt && data.overrideSetAt !== overrideSetAt) {
       localStorage.removeItem("jammy_daily_" + getTodayKey());
     } else {
-      // Valid save — restore result
-      dailyState.track = data.track; dailyState.gameOver = true;
+      // Valid save — restore result, but re-fetch fresh preview URL
+      dailyState.track      = data.track;
+      dailyState.gameOver   = true;
       dailyState.clipOffset = data.clipOffset ?? 0;
-      dailyAudio.src = data.track.preview;
+      try {
+        const freshRes  = await fetch(`/api/track/${data.track.id}`);
+        const freshTrack = await freshRes.json();
+        if (freshTrack.preview && !freshTrack.error) {
+          dailyState.track = { ...data.track, preview: freshTrack.preview };
+        }
+      } catch {}
+      dailyAudio.src = dailyState.track.preview;
       dailyAudio.load();
       document.getElementById("d-album-art").src = data.track.cover;
       document.getElementById("d-album-art").classList.add("revealed");
@@ -925,8 +865,7 @@ function initChallengeGame(track) {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 initEndless();
-const restoredSession = restoreEndlessSession();
-if (!restoredSession) loadTrack();
+loadTrack();
 checkChallengeParam().then(isChallenge => {
   if (!isChallenge) switchTab("daily");
 });
